@@ -1,12 +1,5 @@
-// devo pure rinominare a rota e scrivere tutto in italiano
-// vedere se termina farlo stampare su stdout
-// chiedere al prof anche per la regexp, i file avranno una estenzione o possono essere senza, che devo farla in modo diverso in quel caso
-//send long e send name vedere come fare per valore di ritorno tipo funzioni libreria e termina ecc
-// sambiare termina con xtermina
-
 #include "xerrori.h"
 #include "funzioni.h"
-
 
 int main(int argc, char *argv[])
 {
@@ -44,55 +37,34 @@ int main(int argc, char *argv[])
 			case('n') :
 				nt = atof(optarg);
 				if (nt<1) {
-					termina("Errore -n: numero thread deve essere almeno 1");
+					xtermina("Errore -n: numero thread deve essere almeno 1", QUI);
 				}
 				break;
 			case('q') : 
 				buf_size = atof(optarg);
 				if (buf_size<1) {
-					termina("Errore -q: la dimensione del buffer deve essere almeno 1");
+					xtermina("Errore -q: la dimensione del buffer deve essere almeno 1", QUI);
 				}
 				break;
 			case('t') :
 				delay = atof(optarg);
 				if (delay<0) {
-					termina("Errore -t: delay deve essere >=0");
+					xtermina("Errore -t: delay deve essere >=0", QUI);
 				}
 				break;
 			default:
+				//getopt dovrebbe accorgersi se metto un parametro diverso da nqt, quindi in teoria non dovrei mai arrivare a questo default
 				print_usage(name_exec);
-				termina("");
+			  xtermina("Errore parametri input: qualcosa è andato storto nell'analisi degli argomenti da linea di comando", QUI);
 		}
 	}
-
-	
-	// trovo il numero di nomifile passati per argomento 
-	// metto in un array gli indici in argv contenenti nomifile 
-	int numfiles = 0;
-	int fileindexes[argc-1]; // al massimo sara grande quanto argc-1
-	regex_t regex;
-	int reti;
-	// compila regexp 
-	reti = regcomp(&regex, "^(\\w|[._-])+\\.[A-Za-z]{3}$", REG_EXTENDED);
-	if (reti) termina("Could not compile regex\n");
-	// la testo su ogni parametro
-	for (int i = 1; i < argc; i++) {
-		// esegui regexp
-		reti = regexec(&regex, argv[i], 0, NULL, 0);
-		if (!reti) { // match
-			fileindexes[numfiles] = i;
-			numfiles++;
-		}
-	}
-	// libero memoria
-	regfree(&regex);
 
 
 	// faccio partire il collector
-	if(xfork(QUI)==0) {
-	if(execl("./collector.py", "collector", 0))
-		termina("exec fallita");
-	}
+	// if(xfork(QUI)==0) {
+	// if(execl("./collector.py", "collector", 0))
+	// 	xtermina("exec fallita");
+	// }
 	sleep(1);
 
 	
@@ -102,7 +74,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in serv_addr;
 	// crea socket
 	if ((fd_skt = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
-		termina("Errore creazione socket master");
+		xtermina("Errore creazione socket master", QUI);
 	// assegna indirizzo
 	serv_addr.sin_family = AF_INET;
 	// il numero della porta deve essere convertito 
@@ -111,7 +83,7 @@ int main(int argc, char *argv[])
 	serv_addr.sin_addr.s_addr = inet_addr(HOST);
 	// apre connessione
 	if (connect(fd_skt, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) 
-		termina("Errore apertura connessione soket master");
+		xtermina("Errore nella connessione con il server, controlla che sia in funzione e sulla porta giusta", QUI);
 
 
 	// creazione buffer produttori consumatori e relativi semafori 
@@ -141,7 +113,7 @@ int main(int argc, char *argv[])
 	// PRODUTTORE - thread principale
 	// prendo gli argomenti passati dalla linea di comando e li metto nel buffer
 	int pindex = 0; // indice buffer 
-	for (int i = 0; i < numfiles; i++) {
+	for (int i = optind; i < argc; i++) {
 		// controllo sigint
 		xpthread_mutex_lock(data.sigmutex,QUI);
 		if (data.sigint) {
@@ -152,11 +124,12 @@ int main(int argc, char *argv[])
 		
     // scrittura sul buffer 
     xsem_wait(&sem_free_slots,QUI);
-    buffer[pindex % buf_size] = argv[fileindexes[i]];
+    buffer[pindex % buf_size] = argv[i];
     xsem_post(&sem_data_items,QUI);
 		pindex += 1;
 		if (delay) sleep(delay/1000);
   }
+	
 	
 	// scrivo i valori di terminazione ai worker
 	for (int i = 0; i < nt; i++) {
@@ -165,6 +138,7 @@ int main(int argc, char *argv[])
     xsem_post(&sem_data_items,QUI);
 		pindex += 1;
 	}
+
 
 	// aspetto terminino tutti consumatori
   for(int i=0;i<nt;i++) 
@@ -180,13 +154,13 @@ int main(int argc, char *argv[])
 	xpthread_join(tid,NULL,QUI);
 
 	// mando messaggio di terminazione al collector
-	int tmp = htonl(1234567);
+	int tmp = htonl(123456789);
 	ssize_t e = writen(fd_skt,&tmp,sizeof(tmp));
-	if(e!=sizeof(tmp)) termina("Errore write valore di terminazione");
+	if(e!=sizeof(tmp)) xtermina("Errore write valore di terminazione", QUI);
 	
 	// chiudo connessione con il socket
 	if(close(fd_skt)<0)
-		termina("Errore chiusura socket master");
+		xtermina("Errore chiusura socket master", QUI);
 	
 	return 0;
 }

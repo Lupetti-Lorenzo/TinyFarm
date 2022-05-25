@@ -1,12 +1,9 @@
 #! /usr/bin/env python3
-# server che fornisce l'elenco dei primi in un dato intervallo 
-# gestisce più clienti contemporaneamente usando i thread
 import sys, struct, socket, threading, select
-
 
 # host e porta di default
 HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
-PORT = 55612  # Port to listen on (non-privileged ports are > 1023)
+PORT = 55955  # Port to listen on (non-privileged ports are > 1023)
  
 
 # codice da eseguire nei singoli thread 
@@ -21,11 +18,11 @@ class ClientThread(threading.Thread):
       # print("====", self.ident, "ho finito")
 
 
-
 def main(host=HOST,port=PORT):
   # creiamo il server socket
   with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     try:
+      # print("In attesa del master...")
       s.bind((host, port))
       s.listen()
       # prima stabilisco la connessione con masterworker per ricevere il messaggio di terminazione
@@ -49,13 +46,15 @@ def main(host=HOST,port=PORT):
                 # il master ha inviato il valore di terminazione, ha fatto join dei thread quindi posso chiudere il server tranquillamente
                 data = recv_all(conn_master,4)
                 term = struct.unpack("!i",data[:4])[0] 
-                inputsk.remove(s)
-                inputsk.remove(conn_master)
-                break # esco dal while (ci uscirebbe lo stesso)
+                if term == 123456789: # è arrivato il valore di terminazione giusto
+                  inputsk.remove(s)
+                  inputsk.remove(conn_master)
+                  break  # esco dal while (ci uscirebbe lo stesso)
+                
     except KeyboardInterrupt:
       pass
     
-    print('Va bene smetto...')
+    # print('Va bene smetto...')
     s.shutdown(socket.SHUT_RDWR)
 
 
@@ -84,7 +83,7 @@ def gestisci_connessione(conn,addr):
       char = (struct.unpack("!c",bytes(data))[0]).decode("utf-8") 
       nomefile += char
     # print su stdout
-    print(f"{sum} {nomefile}", file = sys.stdout)
+    print(f"{sum:>10} {nomefile}", file = sys.stdout)
     # print(f"Finito con {addr}")
 
 
@@ -106,10 +105,6 @@ def recv_all(conn,n):
 
 if len(sys.argv)==1:
   main()
-elif len(sys.argv)==2:
-  main(sys.argv[1])
-elif len(sys.argv)==3:
-  main(sys.argv[1], int(sys.argv[2]))
 else:
   print("Uso:\n\t %s [host] [port]" % sys.argv[0])
 

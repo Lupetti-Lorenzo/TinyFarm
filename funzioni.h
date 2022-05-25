@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
-void sendLong(int fd_skt, long n);
-void sendString(int fd_skt, char *s);
+void sendLong(int fd, long n);
+void sendString(int fd, char *s);
 void *tbodyc(void *arg);
 void *sigintHandler(void *v);
 ssize_t readn(int fd, void *ptr, size_t n);

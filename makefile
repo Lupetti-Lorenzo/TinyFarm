@@ -10,7 +10,7 @@ MAIN=farm
 # se si scrive solo make di default compila main 
 all: $(MAIN)
 
-$(MAIN): $(MAIN).o xerrori.o funzioni.o
+$(MAIN): $(MAIN).o xerrori.o funzioni.o generali.h
 
 # target che cancella eseguibili e file oggetto
 clean:

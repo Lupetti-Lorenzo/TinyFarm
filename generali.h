@@ -22,7 +22,7 @@
 #include <stdint.h>
 
 #define HOST "127.0.0.1"
-#define PORT 55612
+#define PORT 55955
 #define QUI __LINE__,  __FILE__
 
 // CONSUMATORE 

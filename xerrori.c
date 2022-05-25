@@ -16,10 +16,8 @@ void termina(const char *messaggio) {
 // termina un processo con eventuale messaggio d'errore + linea e file
 void xtermina(const char *messaggio, int linea, char *file) {
   if(errno==0)  fprintf(stderr,"== %d == %s\n",getpid(), messaggio);
-  else fprintf(stderr,"== %d == %s: %s\n",getpid(), messaggio,
-               strerror(errno));
+  else fprintf(stderr,"== %d == %s: %s\n",getpid(), messaggio, strerror(errno));
   fprintf(stderr,"== %d == Linea: %d, File: %s\n",getpid(),linea,file);
-
   exit(1);
 }
 
