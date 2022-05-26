@@ -86,6 +86,22 @@ void sendString(int fd, char *s) {
 void *tbodyc(void *arg)
 {  
   cdati *a = (cdati *)arg; 
+
+	// per prima cosa stabilisco la connessione con il server
+	int fd_skt = 0;      // file descriptor associato al socket
+	struct sockaddr_in serv_addr;
+	// crea socket
+	if ((fd_skt = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
+		xtermina("Errore creazione socket",QUI);
+	// assegna indirizzo
+	serv_addr.sin_family = AF_INET;
+	// il numero della porta deve essere convertito 
+	// in network order 
+	serv_addr.sin_port = htons(PORT);
+	serv_addr.sin_addr.s_addr = inet_addr(HOST);
+	// apre connessione
+	if (connect(fd_skt, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) 
+		xtermina("Errore apertura connessione soket",QUI);
 		
   while(true) {	
 		// lettura dal buffer 
@@ -96,7 +112,17 @@ void *tbodyc(void *arg)
 		xpthread_mutex_unlock(a->cmutex,QUI);
     xsem_post(a->sem_free_slots,QUI);
 
-		if (strcmp(nome_file, "") == 0) break; // ho incontrato un valore di terminazione
+		if (strcmp(nome_file, "FINE") == 0) { // ho incontrato un valore di terminazione
+			// mando messaggio di terminazione al thread del server e chiudo
+			int tmp, e;
+		 	tmp = htonl(0);
+			e = writen(fd_skt,&tmp,sizeof(tmp));
+			if(e!=sizeof(tmp)) xtermina("Errore scrittura valore di terminazione", QUI);
+      // chiudo connessione
+  		 if(close(fd_skt)<0)
+      	xtermina("Errore chiusura socket",QUI);
+			break;
+		}
 		
 		// apro file
 		FILE *f = fopen(nome_file, "r"); // non uso xfopen per non far terminare il thread in caso di errore, me ne accorgo stampo il messaggio e provo con il prossimo nomefile
@@ -110,6 +136,10 @@ void *tbodyc(void *arg)
 		if (e != 0) xtermina("Errore fseek",QUI);
 		long t = ftell(f); //mi dice quanto e grande il file fino al puntatore
 		if (t < 0) xtermina("Errore ftell",QUI);
+		if(t == 0) { // file vuoto, lo ignoro e passo al prossimo dato del buffer
+	    fprintf(stderr, "== %d == Il file %s risulta vuoto\n", getpid(), nome_file);
+			continue;
+	  }
 		int n = t/sizeof(long); //grandezza array
 		long *a = malloc(n*sizeof(long)); //array di long letti dal file
 		if (a == NULL) xtermina("Errore malloc",QUI);
@@ -126,32 +156,17 @@ void *tbodyc(void *arg)
 		free(a);
 		if (fclose(f) != 0) xtermina("Errore chiusura file",QUI);
 		
-		// mando il risultato al collector
-		// per prima cosa stabilisco la connessione con il server
-		int fd_skt = 0;      // file descriptor associato al socket
-	  struct sockaddr_in serv_addr;
-	  // crea socket
-	  if ((fd_skt = socket(AF_INET, SOCK_STREAM, 0)) < 0) 
-	    xtermina("Errore creazione socket",QUI);
-	  // assegna indirizzo
-	  serv_addr.sin_family = AF_INET;
-	  // il numero della porta deve essere convertito 
-	  // in network order 
-	  serv_addr.sin_port = htons(PORT);
-	  serv_addr.sin_addr.s_addr = inet_addr(HOST);
-	  // apre connessione
-	  if (connect(fd_skt, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) < 0) 
-	    xtermina("Errore apertura connessione soket",QUI);
+		// dico al collector che sto per mandare dati
+		int tmp;
+		tmp = htonl(1);
+		e = writen(fd_skt,&tmp,sizeof(tmp));
+		if(e!=sizeof(tmp)) xtermina("Errore scrittura valore di 'continuazione'", QUI);
 		
     // mando somma
 	  sendLong(fd_skt, sum);
 
 		// mando nome file
 		sendString(fd_skt, nome_file);
-		
-		// chiudo connessione
-		 if(close(fd_skt)<0)
-    	xtermina("Errore chiusura socket",QUI);
   }
   pthread_exit(NULL); 
 }    

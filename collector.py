@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 import sys, struct, socket, threading, select
 
+
 # host e porta di default
 HOST = "127.0.0.1"  # Standard loopback interface address (localhost)
 PORT = 55955  # Port to listen on (non-privileged ports are > 1023)
@@ -16,6 +17,7 @@ class ClientThread(threading.Thread):
       # print("====", self.ident, "mi occupo di", self.addr)
       gestisci_connessione(self.conn,self.addr)
       # print("====", self.ident, "ho finito")
+
 
 
 def main(host=HOST,port=PORT):
@@ -62,29 +64,35 @@ def main(host=HOST,port=PORT):
 # con un client
 def gestisci_connessione(conn,addr): 
   with conn:  
-    # ricevo max32bit e len
-    data = recv_all(conn,8)
-    max32  = struct.unpack("!i",data[:4])[0]  
-    len  = struct.unpack("!i",data[4:])[0]  
-    # ricevo offset
-    data = recv_all(conn,4)
-    offset  = struct.unpack("!i",data)[0]  
-    # calcolo somma
-    sum = (max32*len)+offset
-    
-    # ricevo lunghezza nomefile
-    data = recv_all(conn,4)
-    len  = struct.unpack("!i",data)[0]
+    while True:
+      # ricevo valore di continuazione/terminazione
+      data = recv_all(conn,4)
+      val = struct.unpack("!i",data)[0]  
+      if val == 0: break
 
-    # ricevo caratteri uno ad uno
-    nomefile = ""
-    for i in range(len):
-      data = recv_all(conn,1)
-      char = (struct.unpack("!c",bytes(data))[0]).decode("utf-8") 
-      nomefile += char
-    # print su stdout
-    print(f"{sum:>10} {nomefile}", file = sys.stdout)
-    # print(f"Finito con {addr}")
+      # ricevo max32bit e len
+      data = recv_all(conn,8)
+      max32  = struct.unpack("!i",data[:4])[0]  
+      len  = struct.unpack("!i",data[4:])[0]  
+      # ricevo offset
+      data = recv_all(conn,4)
+      offset  = struct.unpack("!i",data)[0]  
+      # calcolo somma
+      sum = (max32*len)+offset
+      
+      # ricevo lunghezza nomefile
+      data = recv_all(conn,4)
+      len  = struct.unpack("!i",data)[0]
+      
+      # ricevo caratteri uno ad uno
+      nomefile = ""
+      for i in range(len):
+        data = recv_all(conn,1)
+        char = (struct.unpack("!c",bytes(data))[0]).decode("utf-8") 
+        nomefile += char
+      # print su stdout
+      print(f"{sum:>10} {nomefile}", file = sys.stdout)
+      # print(f"Finito con {addr}")
 
 
 # riceve esattamente n byte e li restituisce in un array di byte

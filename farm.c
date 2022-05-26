@@ -58,16 +58,6 @@ int main(int argc, char *argv[])
 			  xtermina("Errore parametri input: qualcosa è andato storto nell'analisi degli argomenti da linea di comando", QUI);
 		}
 	}
-
-
-	// faccio partire il collector
-	// if(xfork(QUI)==0) {
-	// if(execl("./collector.py", "collector", 0))
-	// 	xtermina("exec fallita");
-	// }
-	sleep(1);
-
-	
 	
 	// stabilisco la connessione con il collector con cui mando messaggio di terminazione
 	int fd_skt = 0;      // file descriptor associato al socket
@@ -134,7 +124,7 @@ int main(int argc, char *argv[])
 	// scrivo i valori di terminazione ai worker
 	for (int i = 0; i < nt; i++) {
 		xsem_wait(&sem_free_slots,QUI);
-    buffer[pindex % buf_size] = "";
+    buffer[pindex % buf_size] = "FINE";
     xsem_post(&sem_data_items,QUI);
 		pindex += 1;
 	}
